@@ -28,7 +28,8 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        # Remplacement de 'npm ci' par 'npm install' pour fonctionner sans package-lock.json
+        run: npm install
 
       - name: Build
         run: npm run build
