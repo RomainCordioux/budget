@@ -1,5 +1,0 @@
-"homepage": "https://RomainCordioux.github.io/budget",
-"scripts": {
-  "predeploy": "npm run build",
-  "deploy": "gh-pages -d dist"  // ou 'build' selon votre configuration Vite/CRA
-}
