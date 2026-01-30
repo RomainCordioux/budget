@@ -3,12 +3,16 @@ import { initializeApp } from "firebase/app";
 import { 
   getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query 
 } from "firebase/firestore";
+// AJOUT : Imports GoogleAuthProvider et signInWithPopup
+import { 
+  getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup 
+} from "firebase/auth";
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid 
 } from 'recharts';
 import { 
-  Wallet, Users, User, PiggyBank, TrendingUp, Plus, Trash2, X, Tag, Banknote, Calculator, Percent, Divide, Loader2, AlertTriangle
+  Wallet, Users, User, PiggyBank, TrendingUp, Plus, Trash2, X, Tag, Banknote, Calculator, Percent, Divide, Loader2, AlertTriangle, LogIn, Lock, LogOut, Globe
 } from 'lucide-react';
 
 // --- CONFIGURATION FIREBASE ---
@@ -24,6 +28,7 @@ const firebaseConfig = {
 // Initialisation Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app); 
 
 // --- Couleurs Graphiques ---
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#ff6b6b'];
@@ -65,6 +70,128 @@ const SectionHeader = ({ title, subtitle, action }) => (
     {action && <div>{action}</div>}
   </div>
 );
+
+// --- Composant Login (Firebase Auth : Email + Google) ---
+const LoginScreen = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Connexion Email/MDP
+  const handleEmailLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      console.error(err);
+      if (err.code === 'auth/invalid-credential') {
+        setError('Email ou mot de passe incorrect.');
+      } else {
+        setError('Erreur: ' + err.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // AJOUT : Connexion Google
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    setError('');
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (err) {
+      console.error(err);
+      setError("Erreur Google: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+        <div className="bg-indigo-600 p-8 text-center">
+          <div className="bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
+            <Lock className="text-white w-8 h-8" />
+          </div>
+          <h1 className="text-2xl font-bold text-white">Budget Sécurisé</h1>
+          <p className="text-indigo-100 mt-2 text-sm">Authentification requise</p>
+        </div>
+        
+        <div className="p-8 space-y-6">
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm flex items-center gap-2">
+              <AlertTriangle size={16} /> {error}
+            </div>
+          )}
+
+          {/* Bouton Google */}
+          <button 
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            className="w-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+          >
+            {/* Icône Google simplifiée (SVG inline pour éviter dépendance externe) */}
+            <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.11c-.22-.66-.35-1.36-.35-2.11s.13-1.45.35-2.11V7.05H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.95l3.66-2.84z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.05l3.66 2.84c.87-2.6 3.3-4.51 6.16-4.51z" fill="#EA4335"/>
+            </svg>
+            Continuer avec Google
+          </button>
+
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-slate-200"></div>
+            <span className="flex-shrink-0 mx-4 text-slate-400 text-xs uppercase">Ou par email</span>
+            <div className="flex-grow border-t border-slate-200"></div>
+          </div>
+          
+          <form onSubmit={handleEmailLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+              <input 
+                type="email" 
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                placeholder="votre@email.com"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Mot de passe</label>
+              <input 
+                type="password" 
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                placeholder="••••••••"
+              />
+            </div>
+
+            <button 
+              type="submit"
+              disabled={loading}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              {loading ? <Loader2 className="animate-spin" size={18} /> : <LogIn size={18} />}
+              {loading ? 'Connexion...' : 'Se connecter'}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // --- Composant Modal d'Ajout ---
 const AddEntryModal = ({ isOpen, onClose, type, categories, onAdd }) => {
@@ -192,47 +319,64 @@ const AddEntryModal = ({ isOpen, onClose, type, categories, onAdd }) => {
 // --- Application Principale ---
 
 export default function BudgetApp() {
+  const [user, setUser] = useState(null); // Auth User State
+  const [authLoading, setAuthLoading] = useState(true); // Loading Auth State
+
   const [activeTab, setActiveTab] = useState('dashboard');
   const [distributionMethod, setDistributionMethod] = useState('50/50');
   
-  // États de données (récupérés de Firebase)
   const [expenses, setExpenses] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState(null); 
 
-  // --- Connexion Firebase ---
+  // --- 1. Gestion Authentification ---
   useEffect(() => {
-    const q = query(collection(db, "budget_entries"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setExpenses(data);
-      setIsLoading(false);
-    }, (err) => {
-      console.error(err);
-      setError("Erreur de chargement des données.");
-      setIsLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  // --- Dérivation des données ---
-  const individualExpenses = useMemo(() => expenses.filter(e => e.type === 'Individuel'), [expenses]);
-  const commonExpenses = useMemo(() => expenses.filter(e => e.type === 'Commun'), [expenses]);
-  const savings = useMemo(() => expenses.filter(e => e.type === 'Épargne'), [expenses]);
-  const incomes = useMemo(() => expenses.filter(e => e.type === 'Revenus'), [expenses]);
+  // --- 2. Chargement des données (Seulement si connecté) ---
+  useEffect(() => {
+    if (!user) {
+      setExpenses([]); // Reset data if logout
+      return;
+    }
 
-  // --- Catégories dynamiques ---
-  const individualCategories = useMemo(() => [...new Set(individualExpenses.map(i => i.category))].sort(), [individualExpenses]);
-  const commonCategories = useMemo(() => [...new Set(commonExpenses.map(i => i.category))].sort(), [commonExpenses]);
-  const savingsCategories = useMemo(() => [...new Set(savings.map(i => i.category))].sort(), [savings]);
-  const incomeCategories = useMemo(() => {
-    const existing = [...new Set(incomes.map(i => i.category))].sort();
-    const defaults = ['Salaire', 'Aides sociales', 'Revenus immobilier', 'Autres'];
-    return [...new Set([...defaults, ...existing])];
-  }, [incomes]);
+    setDataLoading(true);
+    const q = query(collection(db, "budget_entries"));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setExpenses(data);
+      setDataLoading(false);
+    }, (err) => {
+      console.error(err);
+      if (err.code === 'permission-denied') {
+        setError("Accès refusé. Vérifiez vos droits.");
+      } else {
+        setError("Erreur de chargement des données.");
+      }
+      setDataLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user]); // Déclenche quand 'user' change
+
+  // --- Actions ---
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Erreur de déconnexion", error);
+    }
+  };
 
   const handleAddClick = (type) => {
     setModalType(type);
@@ -240,8 +384,8 @@ export default function BudgetApp() {
   };
 
   const handleAddSubmit = async (data) => {
+    if (!user) return;
     try {
-      // Ajout du champ 'type' pour le tri ultérieur
       await addDoc(collection(db, "budget_entries"), { ...data, type: modalType });
     } catch (e) {
       console.error("Erreur ajout:", e);
@@ -250,6 +394,7 @@ export default function BudgetApp() {
   };
 
   const deleteItem = async (id) => {
+    if (!user) return;
     if (window.confirm("Supprimer cette entrée ?")) {
       try {
         await deleteDoc(doc(db, "budget_entries", id));
@@ -260,9 +405,13 @@ export default function BudgetApp() {
   };
 
   // --- Calculs Totaux ---
-
   const totals = useMemo(() => {
     const sum = (arr, key) => arr.reduce((acc, curr) => acc + curr[key], 0);
+    // ... (Même logique de calcul que précédemment)
+    const individualExpenses = expenses.filter(e => e.type === 'Individuel');
+    const commonExpenses = expenses.filter(e => e.type === 'Commun');
+    const savings = expenses.filter(e => e.type === 'Épargne');
+    const incomes = expenses.filter(e => e.type === 'Revenus');
 
     const romainMonthly = sum(individualExpenses.filter(i => i.owner === 'Romain'), 'monthly');
     const heleneMonthly = sum(individualExpenses.filter(i => i.owner === 'Hélène'), 'monthly');
@@ -293,23 +442,53 @@ export default function BudgetApp() {
         total: { monthly: romainIncomeM + heleneIncomeM, annual: romainIncomeA + heleneIncomeA }
       }
     };
-  }, [individualExpenses, commonExpenses, savings, incomes]);
+  }, [expenses]);
+
+  // Dérivées pour l'affichage (réutilisation de la logique précédente)
+  const individualExpenses = useMemo(() => expenses.filter(e => e.type === 'Individuel'), [expenses]);
+  const commonExpenses = useMemo(() => expenses.filter(e => e.type === 'Commun'), [expenses]);
+  const savings = useMemo(() => expenses.filter(e => e.type === 'Épargne'), [expenses]);
+  const incomes = useMemo(() => expenses.filter(e => e.type === 'Revenus'), [expenses]);
+
+  const individualCategories = useMemo(() => [...new Set(individualExpenses.map(i => i.category))].sort(), [individualExpenses]);
+  const commonCategories = useMemo(() => [...new Set(commonExpenses.map(i => i.category))].sort(), [commonExpenses]);
+  const savingsCategories = useMemo(() => [...new Set(savings.map(i => i.category))].sort(), [savings]);
+  const incomeCategories = useMemo(() => {
+    const existing = [...new Set(incomes.map(i => i.category))].sort();
+    const defaults = ['Salaire', 'Aides sociales', 'Revenus immobilier', 'Autres'];
+    return [...new Set([...defaults, ...existing])];
+  }, [incomes]);
 
   const commonCategoryData = useMemo(() => {
     const data = commonExpenses.reduce((acc, curr) => {
       const existing = acc.find(item => item.name === curr.category);
-      if (existing) { existing.value += curr.monthly; } 
-      else { acc.push({ name: curr.category, value: curr.monthly }); }
+      if (existing) { existing.value += curr.monthly; } else { acc.push({ name: curr.category, value: curr.monthly }); }
       return acc;
     }, []);
     return data.sort((a, b) => b.value - a.value);
   }, [commonExpenses]);
 
-  // --- Rendu des Vues ---
 
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-slate-100"><Loader2 className="animate-spin text-blue-600" /></div>;
-  if (error) return <div className="min-h-screen flex items-center justify-center bg-slate-100 text-red-600 gap-2"><AlertTriangle /> {error}</div>;
+  // --- RENDU CONDITIONNEL ---
+  
+  // 1. Chargement de l'auth
+  if (authLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-100"><Loader2 className="animate-spin text-indigo-600 w-8 h-8" /></div>;
+  }
 
+  // 2. Si pas connecté -> Ecran Login
+  if (!user) {
+    return <LoginScreen />;
+  }
+
+  // 3. Si connecté mais chargement données
+  if (dataLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-100"><Loader2 className="animate-spin text-indigo-600 w-8 h-8" /></div>;
+  }
+
+  // --- FONCTIONS DE RENDU (Dashboard, Income, etc.) - IDENTIQUES ---
+  // Je reprends les fonctions de rendu exactes pour ne pas casser le design
+  
   const renderDashboard = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -320,35 +499,24 @@ export default function BudgetApp() {
         <StatCard title="Épargne Romain" valueMonthly={totals.savings.romain.monthly} valueAnnual={totals.savings.romain.annual} icon={PiggyBank} color="bg-cyan-500" />
         <StatCard title="Épargne Hélène" valueMonthly={totals.savings.helene.monthly} valueAnnual={totals.savings.helene.annual} icon={PiggyBank} color="bg-amber-500" />
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* ... Graphiques ... */}
+       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <SectionHeader title="Répartition Mensuelle Globale" subtitle="Où va l'argent chaque mois ?" />
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={[
-                  { name: 'Revenus', montant: totals.income.total.monthly, color: '#059669' }, 
-                  { name: '', montant: 0, color: 'transparent' },
-                  { name: 'Commun', montant: totals.common.monthly, color: '#6366f1' },
-                  { name: 'Dép. Romain', montant: totals.romain.monthly, color: '#3b82f6' },
-                  { name: 'Dép. Hélène', montant: totals.helene.monthly, color: '#ec4899' },
-                  { name: 'Ep. Romain', montant: totals.savings.romain.monthly, color: '#06b6d4' },
-                  { name: 'Ep. Hélène', montant: totals.savings.helene.monthly, color: '#f59e0b' },
-                ]} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <BarChart data={[ { name: 'Revenus', montant: totals.income.total.monthly, color: '#059669' }, { name: '', montant: 0, color: 'transparent' }, { name: 'Commun', montant: totals.common.monthly, color: '#6366f1' }, { name: 'Dép. Romain', montant: totals.romain.monthly, color: '#3b82f6' }, { name: 'Dép. Hélène', montant: totals.helene.monthly, color: '#ec4899' }, { name: 'Ep. Romain', montant: totals.savings.romain.monthly, color: '#06b6d4' }, { name: 'Ep. Hélène', montant: totals.savings.helene.monthly, color: '#f59e0b' }, ]} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 11}} interval={0} />
                 <YAxis axisLine={false} tickLine={false} tickFormatter={(value) => `${value}€`} />
                 <RechartsTooltip cursor={{ fill: 'transparent' }} formatter={(value) => value > 0 ? `${value.toFixed(2)} €` : ''} />
                 <Bar dataKey="montant" radius={[4, 4, 0, 0]} barSize={40}>
-                  {[{ color: '#059669' }, { color: 'transparent' }, { color: '#6366f1' }, { color: '#3b82f6' }, { color: '#ec4899' }, { color: '#06b6d4' }, { color: '#f59e0b' }].map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
+                  {[{ color: '#059669' }, { color: 'transparent' }, { color: '#6366f1' }, { color: '#3b82f6' }, { color: '#ec4899' }, { color: '#06b6d4' }, { color: '#f59e0b' }].map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.color} />))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
-
         <Card>
           <SectionHeader title="Répartition Dépenses Communes" subtitle="Par catégorie" />
           <div className="h-64">
@@ -387,27 +555,16 @@ export default function BudgetApp() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead className="bg-emerald-50 text-emerald-800">
-                    <tr>
-                      <th className="px-3 py-2 rounded-l-lg">Type</th>
-                      <th className="px-3 py-2 text-right">Mensuel</th>
-                      <th className="px-3 py-2 text-right">Annuel</th>
-                      <th className="px-3 py-2 rounded-r-lg"></th>
-                    </tr>
+                    <tr><th className="px-3 py-2 rounded-l-lg">Type</th><th className="px-3 py-2 text-right">Mensuel</th><th className="px-3 py-2 text-right">Annuel</th><th className="px-3 py-2 rounded-r-lg"></th></tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {data.length === 0 ? (
-                      <tr><td colSpan="4" className="text-center py-4 text-slate-400 italic">Aucun revenu</td></tr>
-                    ) : (
+                    {data.length === 0 ? (<tr><td colSpan="4" className="text-center py-4 text-slate-400 italic">Aucun revenu</td></tr>) : (
                       data.map((item) => (
                         <tr key={item.id} className="hover:bg-slate-50">
-                          <td className="px-3 py-3 font-medium text-slate-700">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700"><Tag size={10} className="mr-1" />{item.category}</span>
-                          </td>
+                          <td className="px-3 py-3 font-medium text-slate-700"><span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700"><Tag size={10} className="mr-1" />{item.category}</span></td>
                           <td className="px-3 py-3 text-right text-emerald-600 font-medium">+{item.monthly.toFixed(2)} €</td>
                           <td className="px-3 py-3 text-right text-slate-500">{item.annual.toFixed(2)} €</td>
-                          <td className="px-3 py-3 text-right">
-                            <button onClick={() => deleteItem(item.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
-                          </td>
+                          <td className="px-3 py-3 text-right"><button onClick={() => deleteItem(item.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button></td>
                         </tr>
                       ))
                     )}
@@ -421,51 +578,23 @@ export default function BudgetApp() {
     </div>
   );
 
+  // Pour renderIndividual et renderCommon et renderSavings, je conserve la même logique d'affichage que précedemment
   const renderIndividual = () => (
     <div>
-      <div className="flex justify-end mb-4">
-        <button onClick={() => handleAddClick('Individuel')} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors shadow-sm">
-          <Plus size={16} /> Ajouter une dépense individuelle
-        </button>
-      </div>
+      <div className="flex justify-end mb-4"><button onClick={() => handleAddClick('Individuel')} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors shadow-sm"><Plus size={16} /> Ajouter une dépense individuelle</button></div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {['Romain', 'Hélène'].map((person) => {
           const data = individualExpenses.filter(i => i.owner === person);
           const totalM = totals[person === 'Hélène' ? 'helene' : 'romain']?.monthly || 0;
           return (
             <Card key={person}>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className={`text-lg font-bold ${person === 'Romain' ? 'text-blue-600' : 'text-pink-600'}`}>{person}</h3>
-                <div className="text-right"><span className="block text-xl font-bold">{totalM.toFixed(2)} € <span className="text-xs font-normal text-gray-500">/mois</span></span></div>
-              </div>
+              <div className="flex justify-between items-center mb-4"><h3 className={`text-lg font-bold ${person === 'Romain' ? 'text-blue-600' : 'text-pink-600'}`}>{person}</h3><div className="text-right"><span className="block text-xl font-bold">{totalM.toFixed(2)} € <span className="text-xs font-normal text-gray-500">/mois</span></span></div></div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
-                  <thead className="bg-slate-50 text-slate-500">
-                    <tr>
-                      <th className="px-3 py-2 rounded-l-lg">Libellé</th>
-                      <th className="px-3 py-2">Catégorie</th>
-                      <th className="px-3 py-2 text-right">Mensuel</th>
-                      <th className="px-3 py-2 text-right">Annuel</th>
-                      <th className="px-3 py-2 rounded-r-lg"></th>
-                    </tr>
-                  </thead>
+                  <thead className="bg-slate-50 text-slate-500"><tr><th className="px-3 py-2 rounded-l-lg">Libellé</th><th className="px-3 py-2">Catégorie</th><th className="px-3 py-2 text-right">Mensuel</th><th className="px-3 py-2 text-right">Annuel</th><th className="px-3 py-2 rounded-r-lg"></th></tr></thead>
                   <tbody className="divide-y divide-slate-100">
-                    {data.length === 0 ? (
-                      <tr><td colSpan="5" className="text-center py-4 text-slate-400 italic">Aucune dépense</td></tr>
-                    ) : (
-                      data.map((item) => (
-                        <tr key={item.id} className="hover:bg-slate-50">
-                          <td className="px-3 py-3 font-medium text-slate-700">{item.label}</td>
-                          <td className="px-3 py-3 text-slate-500">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800"><Tag size={10} className="mr-1" />{item.category}</span>
-                          </td>
-                          <td className="px-3 py-3 text-right">{item.monthly.toFixed(2)} €</td>
-                          <td className="px-3 py-3 text-right text-slate-500">{item.annual.toFixed(2)} €</td>
-                          <td className="px-3 py-3 text-right">
-                            <button onClick={() => deleteItem(item.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
-                          </td>
-                        </tr>
-                      ))
+                    {data.length === 0 ? (<tr><td colSpan="5" className="text-center py-4 text-slate-400 italic">Aucune dépense</td></tr>) : (
+                      data.map((item) => (<tr key={item.id} className="hover:bg-slate-50"><td className="px-3 py-3 font-medium text-slate-700">{item.label}</td><td className="px-3 py-3 text-slate-500"><span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800"><Tag size={10} className="mr-1" />{item.category}</span></td><td className="px-3 py-3 text-right">{item.monthly.toFixed(2)} €</td><td className="px-3 py-3 text-right text-slate-500">{item.annual.toFixed(2)} €</td><td className="px-3 py-3 text-right"><button onClick={() => deleteItem(item.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button></td></tr>))
                     )}
                   </tbody>
                 </table>
@@ -479,55 +608,21 @@ export default function BudgetApp() {
 
   const renderCommon = () => {
     const totalCommonMonthly = totals.common.monthly || 1;
-
     return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2">
         <Card>
-           <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-slate-800">Dépenses Communes</h2>
-                <button onClick={() => { setModalType('Commun'); setModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
-                    <Plus size={18} /> Ajouter
-                </button>
-           </div>
+           <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold text-slate-800">Dépenses Communes</h2><button onClick={() => { setModalType('Commun'); setModalOpen(true); }} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><Plus size={18} /> Ajouter</button></div>
            <div className="overflow-x-auto">
              <table className="w-full text-sm text-left">
-               <thead className="bg-slate-50 text-slate-500">
-                 <tr>
-                    <th className="px-4 py-3 rounded-l-lg">Libellé</th>
-                    <th className="px-4 py-3">Catégorie</th>
-                    <th className="px-4 py-3 text-right">Mensuel</th>
-                    <th className="px-4 py-3 text-right">Annuel</th>
-                    <th className="px-4 py-3 text-right">Part (%)</th>
-                    <th className="px-4 py-3 rounded-r-lg"></th>
-                 </tr>
-               </thead>
+               <thead className="bg-slate-50 text-slate-500"><tr><th className="px-4 py-3 rounded-l-lg">Libellé</th><th className="px-4 py-3">Catégorie</th><th className="px-4 py-3 text-right">Mensuel</th><th className="px-4 py-3 text-right">Annuel</th><th className="px-4 py-3 text-right">Part (%)</th><th className="px-4 py-3 rounded-r-lg"></th></tr></thead>
                <tbody className="divide-y divide-slate-100">
-                 {commonExpenses.length === 0 ? (
-                    <tr><td colSpan="6" className="text-center py-8 text-slate-400 italic">Aucune dépense commune</td></tr>
-                 ) : (
+                 {commonExpenses.length === 0 ? (<tr><td colSpan="6" className="text-center py-8 text-slate-400 italic">Aucune dépense commune</td></tr>) : (
                     commonExpenses.map((item) => {
                         const percent = (item.monthly / totalCommonMonthly) * 100;
                         return (
                         <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-4 py-3 font-medium text-slate-700">{item.label}</td>
-                            <td className="px-4 py-3 text-slate-500">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700">
-                                <Tag size={10} className="mr-1" />{item.category}
-                                </span>
-                            </td>
-                            <td className="px-4 py-3 text-right text-slate-700">{item.monthly.toLocaleString()} €</td>
-                            <td className="px-4 py-3 text-right text-slate-500">{item.annual.toLocaleString()} €</td>
-                            <td className="px-4 py-3 text-right">
-                                <span className="inline-block px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-semibold">
-                                    {percent.toFixed(1)}%
-                                </span>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                                <button onClick={() => deleteItem(item.id)} className="text-slate-400 hover:text-red-500 transition-colors">
-                                <Trash2 size={16} />
-                                </button>
-                            </td>
+                            <td className="px-4 py-3 font-medium text-slate-700">{item.label}</td><td className="px-4 py-3 text-slate-500"><span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700"><Tag size={10} className="mr-1" />{item.category}</span></td><td className="px-4 py-3 text-right text-slate-700">{item.monthly.toLocaleString()} €</td><td className="px-4 py-3 text-right text-slate-500">{item.annual.toLocaleString()} €</td><td className="px-4 py-3 text-right"><span className="inline-block px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-semibold">{percent.toFixed(1)}%</span></td><td className="px-4 py-3 text-right"><button onClick={() => deleteItem(item.id)} className="text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={16} /></button></td>
                         </tr>
                         );
                     })
@@ -549,14 +644,7 @@ export default function BudgetApp() {
                     <RechartsTooltip formatter={(value) => `${value.toFixed(2)} €`} />
                     </PieChart>
                 </ResponsiveContainer>
-                <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                  {commonCategoryData.map((entry, index) => (
-                    <div key={index} className="flex items-center text-xs text-slate-600">
-                      <div className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
-                      {entry.name}
-                    </div>
-                  ))}
-                </div>
+                <div className="mt-4 flex flex-wrap gap-2 justify-center">{commonCategoryData.map((entry, index) => (<div key={index} className="flex items-center text-xs text-slate-600"><div className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>{entry.name}</div>))}</div>
             </div>
           </Card>
       </div>
@@ -567,17 +655,12 @@ export default function BudgetApp() {
     const totalIncome = totals.income.total.monthly || 1; 
     const romainIncome = totals.income.romain.monthly;
     const heleneIncome = totals.income.helene.monthly;
-    
     let romainShare, heleneShare, romainPercent, helenePercent;
     if (distributionMethod === 'prorata') {
-      romainPercent = (romainIncome / totalIncome) * 100;
-      helenePercent = (heleneIncome / totalIncome) * 100;
-      romainShare = totals.common.monthly * (romainIncome / totalIncome);
-      heleneShare = totals.common.monthly * (heleneIncome / totalIncome);
+      romainPercent = (romainIncome / totalIncome) * 100; helenePercent = (heleneIncome / totalIncome) * 100;
+      romainShare = totals.common.monthly * (romainIncome / totalIncome); heleneShare = totals.common.monthly * (heleneIncome / totalIncome);
     } else {
-      romainPercent = 50; helenePercent = 50;
-      romainShare = totals.common.monthly * 0.5;
-      heleneShare = totals.common.monthly * 0.5;
+      romainPercent = 50; helenePercent = 50; romainShare = totals.common.monthly * 0.5; heleneShare = totals.common.monthly * 0.5;
     }
     const romainCapacity = romainIncome - totals.romain.monthly - romainShare;
     const heleneCapacity = heleneIncome - totals.helene.monthly - heleneShare;
@@ -622,48 +705,23 @@ export default function BudgetApp() {
              </div>
           </Card>
        </div>
-
+       {/* Savings List & Button */}
        <div className="flex justify-between items-center bg-white p-6 rounded-xl shadow-sm border border-slate-200">
           <div><h2 className="text-xl font-bold text-slate-800">Gestion de l'Épargne</h2><p className="text-sm text-slate-500">Total Foyer</p></div>
-          <div className="flex gap-6">
-             <div className="text-right"><span className="text-sm text-slate-500">Mensuel</span><p className="text-2xl font-bold text-emerald-600">{totals.savings.monthly.toFixed(2)} €</p></div>
-             <div className="text-right border-l pl-6 border-slate-200"><span className="text-sm text-slate-500">Annuel</span><p className="text-2xl font-bold text-emerald-800">{totals.savings.annual.toLocaleString()} €</p></div>
-             <button onClick={() => handleAddClick('Épargne')} className="ml-4 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors shadow-sm self-center"><Plus size={16} /> Ajouter</button>
-          </div>
+          <div className="flex gap-6"><div className="text-right"><span className="text-sm text-slate-500">Mensuel</span><p className="text-2xl font-bold text-emerald-600">{totals.savings.monthly.toFixed(2)} €</p></div><div className="text-right border-l pl-6 border-slate-200"><span className="text-sm text-slate-500">Annuel</span><p className="text-2xl font-bold text-emerald-800">{totals.savings.annual.toLocaleString()} €</p></div><button onClick={() => handleAddClick('Épargne')} className="ml-4 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors shadow-sm self-center"><Plus size={16} /> Ajouter</button></div>
        </div>
-       
        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
          {['Romain', 'Hélène'].map((person) => {
             const personData = savings.filter(s => s.owner === person);
             const personTotalM = personData.reduce((acc, curr) => acc + curr.monthly, 0);
             return (
               <Card key={person}>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className={`text-lg font-bold ${person === 'Romain' ? 'text-blue-600' : 'text-pink-600'}`}>{person}</h3>
-                  <div className="text-right"><span className="block text-xl font-bold text-emerald-600">{personTotalM.toFixed(2)} € <span className="text-xs font-normal text-gray-500">/mois</span></span></div>
-                </div>
+                <div className="flex justify-between items-center mb-4"><h3 className={`text-lg font-bold ${person === 'Romain' ? 'text-blue-600' : 'text-pink-600'}`}>{person}</h3><div className="text-right"><span className="block text-xl font-bold text-emerald-600">{personTotalM.toFixed(2)} € <span className="text-xs font-normal text-gray-500">/mois</span></span></div></div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left">
-                    <thead className={`${person === 'Romain' ? 'bg-blue-50' : 'bg-pink-50'} text-slate-600`}>
-                      <tr>
-                        <th className="px-3 py-2 rounded-l-lg">Poste</th>
-                        <th className="px-3 py-2">Source</th>
-                        <th className="px-3 py-2 text-right">Mensuel</th>
-                        <th className="px-3 py-2 rounded-r-lg"></th>
-                      </tr>
-                    </thead>
+                  <table className="w-full text-sm text-left"><thead className={`${person === 'Romain' ? 'bg-blue-50' : 'bg-pink-50'} text-slate-600`}><tr><th className="px-3 py-2 rounded-l-lg">Poste</th><th className="px-3 py-2">Source</th><th className="px-3 py-2 text-right">Mensuel</th><th className="px-3 py-2 rounded-r-lg"></th></tr></thead>
                     <tbody className="divide-y divide-slate-100">
-                      {personData.length === 0 ? (
-                        <tr><td colSpan="4" className="text-center py-4 text-slate-400 italic">Aucune épargne</td></tr>
-                      ) : (
-                        personData.map((item) => (
-                          <tr key={item.id} className="hover:bg-slate-50">
-                            <td className="px-3 py-3 font-medium text-slate-700">{item.category}</td>
-                            <td className="px-3 py-3 text-slate-500 text-xs">{item.source}</td>
-                            <td className="px-3 py-3 text-right font-medium">{item.monthly.toLocaleString()} €</td>
-                            <td className="px-3 py-3 text-right"><button onClick={() => deleteItem(item.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button></td>
-                          </tr>
-                        ))
+                      {personData.length === 0 ? (<tr><td colSpan="4" className="text-center py-4 text-slate-400 italic">Aucune épargne</td></tr>) : (
+                        personData.map((item) => (<tr key={item.id} className="hover:bg-slate-50"><td className="px-3 py-3 font-medium text-slate-700">{item.category}</td><td className="px-3 py-3 text-slate-500 text-xs">{item.source}</td><td className="px-3 py-3 text-right font-medium">{item.monthly.toLocaleString()} €</td><td className="px-3 py-3 text-right"><button onClick={() => deleteItem(item.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button></td></tr>))
                       )}
                     </tbody>
                   </table>
@@ -675,19 +733,32 @@ export default function BudgetApp() {
     </div>
   )};
 
+  // --- Layout Principal ---
+
   return (
     <div className="min-h-screen bg-slate-100 p-4 md:p-8 font-sans">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div><h1 className="text-2xl md:text-3xl font-bold text-slate-900 flex items-center gap-2"><Wallet className="w-8 h-8 text-blue-600" /> Suivi Budget & Épargne</h1><p className="text-slate-500 mt-1">Tableau de bord financier foyer</p></div>
-          <div className="flex bg-white p-1 rounded-lg shadow-sm border border-slate-200">
-            {[{ id: 'dashboard', label: 'Vue d\'ensemble', icon: TrendingUp }, { id: 'income', label: 'Revenus', icon: Banknote }, { id: 'individual', label: 'Individuel', icon: User }, { id: 'common', label: 'Foyer', icon: Users }, { id: 'savings', label: 'Épargne', icon: PiggyBank }].map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === tab.id ? 'bg-blue-50 text-blue-700 shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>
-                <tab.icon size={16} /><span className="hidden sm:inline">{tab.label}</span>
-              </button>
-            ))}
+          <div className="flex items-center gap-4">
+             {/* Onglets de navigation */}
+             <div className="flex bg-white p-1 rounded-lg shadow-sm border border-slate-200">
+                {[{ id: 'dashboard', label: 'Vue d\'ensemble', icon: TrendingUp }, { id: 'income', label: 'Revenus', icon: Banknote }, { id: 'individual', label: 'Individuel', icon: User }, { id: 'common', label: 'Foyer', icon: Users }, { id: 'savings', label: 'Épargne', icon: PiggyBank }].map(tab => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === tab.id ? 'bg-blue-50 text-blue-700 shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}>
+                    <tab.icon size={16} /><span className="hidden sm:inline">{tab.label}</span>
+                </button>
+                ))}
+            </div>
+            {/* Bouton Déconnexion */}
+            <button onClick={handleLogout} className="bg-slate-200 hover:bg-slate-300 text-slate-700 p-2 rounded-lg transition-colors" title="Se déconnecter">
+                <LogOut size={20} />
+            </button>
           </div>
         </div>
+
+        {/* Message d'erreur global */}
+        {error && <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6 flex items-center gap-2 border border-red-200"><AlertTriangle size={20} /> {error}</div>}
+
         <div className="animate-in fade-in duration-300">
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'income' && renderIncome()}
